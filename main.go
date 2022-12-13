@@ -1,22 +1,34 @@
 package main
 
 import (
-	"net/http"
-	"os"
+	"github.com/gin-gonic/gin"
+	"github.com/sonngocminh99/GoDemo/config"
+	"github.com/sonngocminh99/GoDemo/controller"
+	"github.com/sonngocminh99/GoDemo/repository"
+	"github.com/sonngocminh99/GoDemo/service"
+	"gorm.io/gorm"
 )
 
-func indexHanler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("<h1>Hello World!</h1>"))
-}
+var (
+	db                *gorm.DB                     = config.SetupDatabaseConnection()
+	productRepository repository.ProductRepository = repository.NewProductConnection(db)
+	productService    service.ProductService       = service.NewProductService(productRepository)
+	productController controller.ProductController = controller.NewProductController(productService)
+)
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
+	defer config.CloseDatabaseConnection(db)
+	r := gin.Default()
+
+	productRoutes := r.Group("api/products")
+	{
+		productRoutes.GET("/", productController.AllProducts)
+		productRoutes.POST("/", productController.InsertProduct)
+		productRoutes.GET("/:id", productController.FindProductById)
+		productRoutes.PUT("/:id", productController.UpdateProduct)
+		productRoutes.DELETE("/:id", productController.DeleteProduct)
 	}
 
-	mux := http.NewServeMux()
+	r.Run()
 
-	mux.HandleFunc("/", indexHanler)
-	http.ListenAndServe(":"+port, mux)
 }
